@@ -3,33 +3,193 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Remittance Advice Builder — Browser Edition (Per-Activity Net/Payment Edit)</title>
+  <title>Claim Remittance Converter</title>
   <style>
-    :root { --brand:#0d6efd; --muted:#6c757d; }
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:980px;margin:auto;padding:1.25rem;}
-    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 1px 6px rgba(0,0,0,.06);padding:1rem;}
-    label{display:block;margin-top:.75rem;font-weight:600}
-    input[type="file"],input[type="text"]{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:10px;margin-top:.35rem;}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-    button{border:0;border-radius:12px;padding:.8rem 1rem;font-weight:700;cursor:pointer}
-    .primary{background:#0d6efd;color:#fff}
-    .ghost{background:#f8fafc}
-    .hint{color:#64748b;font-size:.95rem}
-    .error{background:#fee2e2;color:#991b1b;padding:.75rem;border-radius:10px;margin-top:.75rem}
-    footer{margin-top:1rem;color:#64748b;font-size:.9rem}
-    code{background:#f1f5f9;padding:.15rem .4rem;border-radius:6px}
-    .opts{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-top:.75rem}
-    .claims{margin-top:1rem}
-    .claim{border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin:.75rem 0}
-    table{width:100%;border-collapse:collapse;margin-top:.5rem}
-    th,td{border:1px solid #e5e7eb;padding:.5rem;text-align:start}
-    th{background:#f8fafc}
-    .net{font-weight:700}
+    /* New Dark Theme Colors */
+    :root { 
+      --brand: #FF7F00; /* Orange */
+      --brand-dark: #cc6600; 
+      --bg-dark: #121212; /* Very Dark Background */
+      --text-light: #f0f0f0; /* Light Text */
+      --card-bg: #1e1e1e; /* Card Background */
+      --border-color: #333; /* Dark Border */
+      --input-bg: #2b2b2b;
+      --hint-color: #999;
+      --error-bg: #3c0c0c; /* Dark Red for Error */
+      --error-text: #ff9999;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      max-width: 980px;
+      margin: auto;
+      padding: 1.25rem;
+      background-color: var(--bg-dark); /* Dark Background */
+      color: var(--text-light); /* Light Text */
+    }
+    
+    header {
+      display: flex;
+      flex-direction: column; /* Stack logo and title */
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    
+    .logo-container {
+      margin-bottom: 1rem;
+    }
+    
+    .logo-container img {
+      max-height: 50px; /* Adjust as needed */
+      width: auto;
+      display: block;
+    }
+    
+    h1 {
+      font-size: 1.5rem;
+      color: var(--brand); /* Orange Title */
+    }
+
+    .card {
+      background: var(--card-bg); /* Dark Card Background */
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      padding: 1.5rem;
+    }
+    
+    label {
+      display: block;
+      margin-top: .75rem;
+      font-weight: 600;
+      color: var(--text-light);
+    }
+    
+    input[type="text"] {
+      width: 100%;
+      padding: .6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-top: .35rem;
+      background-color: var(--input-bg);
+      color: var(--text-light);
+    }
+
+    /* Styling for File Input to make it more visible */
+    input[type="file"] {
+      width: 100%;
+      padding: 1rem; /* Bigger padding for visibility */
+      border: 2px dashed var(--brand); /* Dashed Orange border */
+      border-radius: 12px;
+      margin-top: .5rem;
+      background-color: var(--input-bg);
+      color: var(--text-light);
+      cursor: pointer;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: .8rem 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .primary {
+      background: var(--brand); /* Orange Button */
+      color: var(--bg-dark); /* Dark Text on Orange */
+    }
+    
+    .primary:hover {
+      background: var(--brand-dark);
+    }
+    
+    .hint {
+      color: var(--hint-color);
+      font-size: .95rem;
+    }
+    
+    .error {
+      background: var(--error-bg);
+      color: var(--error-text);
+      padding: .75rem;
+      border-radius: 10px;
+      margin-top: .75rem;
+      border: 1px solid var(--error-text);
+    }
+    
+    footer {
+      margin-top: 1.5rem;
+      color: var(--hint-color);
+      font-size: .9rem;
+    }
+    
+    code {
+      background: var(--border-color);
+      color: var(--brand);
+      padding: .15rem .4rem;
+      border-radius: 6px;
+    }
+    
+    .opts {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border-color);
+    }
+    
+    .claims {
+      margin-top: 2rem;
+    }
+    
+    .claim {
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--card-bg);
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    
+    th, td {
+      border: 1px solid var(--border-color);
+      padding: .8rem;
+      text-align: start;
+      color: var(--text-light);
+    }
+    
+    th {
+      background: var(--border-color);
+      color: var(--brand);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    
+    .net {
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
   <header>
+    <div class="logo-container">
+      <img src="logo.png" alt="Company Logo">
+    </div>
     <h1>Claim XML to Remittance Converter (Per-Activity Net/Payment Edit)</h1>
     <div class="hint">Browser-Based Tool</div>
   </header>
@@ -37,12 +197,14 @@
   <div class="card">
     <label>Upload XML File (Claim)</label>
     <input id="file" type="file" accept=".xml" />
+    
+    <div id="msg"></div>
+    
     <div class="opts">
       <label><input type="checkbox" id="pretty" checked> Format Output (Pretty Print)</label>
       <label><input type="checkbox" id="crlf" checked> Windows Line Endings (CRLF)</label>
       <button id="convert" class="primary">Convert and Download</button>
     </div>
-    <div id="msg"></div>
   </div>
 
   <div id="panel" class="claims"></div>
@@ -53,6 +215,8 @@
   </footer>
 
 <script>
+// --- [ JavaScript Code from previous step remains the same here ] ---
+// NOTE: I am omitting the full JS block here for brevity, but you must paste the complete working JS code here.
 (function(){
   const $ = sel => document.querySelector(sel);
   const byName = (parent, name) => {
