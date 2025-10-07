@@ -26,7 +26,7 @@
       padding: 1.5rem;
       background-color: var(--bg-dark); /* Dark Background */
       color: var(--text-light); /* Light Text */
-      direction: rtl; /* Use RTL for Arabic UI */
+      direction: ltr; /* Ensure LTR for English UI */
     }
     
     header {
@@ -43,7 +43,7 @@
     }
     
     .logo-container img {
-      height: 120px; /* تم التعديل إلى ارتفاع صريح: 120px */
+      height: 80px; /* Adjusted to 80px for better fit */
       max-width: 90%; 
       width: auto;
       display: block;
@@ -68,7 +68,7 @@
       margin-top: .75rem;
       font-weight: 600;
       color: var(--text-light);
-      text-align: right;
+      text-align: left;
     }
     
     input[type="text"] {
@@ -79,7 +79,7 @@
       margin-top: .35rem;
       background-color: var(--input-bg);
       color: var(--text-light);
-      direction: ltr; /* Ensure numbers/English text are LTR */
+      direction: ltr; 
       text-align: left;
     }
 
@@ -122,7 +122,7 @@
     .hint {
       color: var(--hint-color);
       font-size: .95rem;
-      text-align: right;
+      text-align: left;
     }
     
     .error {
@@ -132,14 +132,14 @@
       border-radius: 10px;
       margin-top: .75rem;
       border: 1px solid var(--error-text);
-      text-align: right;
+      text-align: left;
     }
     
     footer {
       margin-top: 1.5rem;
       color: var(--hint-color);
       font-size: .9rem;
-      text-align: right;
+      text-align: left;
     }
     
     code {
@@ -157,7 +157,7 @@
       margin-top: 1rem;
       padding-top: 1rem;
       border-top: 1px dashed var(--border-color);
-      justify-content: flex-end; /* Align options to the right in RTL */
+      justify-content: flex-start; /* Align options to the left in LTR */
     }
 
     .opts label { margin-top: 0; }
@@ -178,14 +178,14 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 1rem;
-      direction: rtl; /* Ensure table structure is RTL */
-      text-align: right;
+      direction: ltr; 
+      text-align: left;
     }
     
     th, td {
       border: 1px solid var(--border-color);
       padding: .8rem;
-      text-align: right;
+      text-align: left;
       color: var(--text-light);
     }
     
@@ -206,29 +206,29 @@
     <div class="logo-container">
       <img src="logo.png" alt="Company Logo">
     </div>
-    <h1>تحويل Claim XML إلى Remittance (إظهار Net + إدخال Payment لكل Activity)</h1>
-    <div class="hint">يعمل كليًا داخل المتصفح</div>
+    <h1>Claim XML to Remittance Converter (Per-Activity Payment Editor)</h1>
+    <div class="hint">Browser-Based Tool</div>
   </header>
 
   <div class="card">
-    <label>ارفع ملف الـ XML (claim)</label>
+    <label for="file">Upload Claim XML File</label>
     <input id="file" type="file" accept=".xml" />
     
     <div id="msg"></div>
     
     <div class="opts">
-      <label><input type="checkbox" id="pretty" checked> تنسيق الإخراج (Pretty print)</label>
-      <label><input type="checkbox" id="crlf" checked> فواصل أسطر ويندوز (CRLF)</label>
-      <button id="convert" class="primary">حوّل وحمّل الملف</button>
+      <label><input type="checkbox" id="pretty" checked> Format Output (Pretty Print)</label>
+      <label><input type="checkbox" id="crlf" checked> Windows Line Endings (CRLF)</label>
+      <button id="convert" class="primary">Convert and Download</button>
     </div>
   </div>
 
   <div id="panel" class="claims"></div>
 
   <footer class="hint">
-    • بعد رفع الملف هتظهر قائمة بالـ Activities لكل Claim: عمود <code>Net</code> + حقل <code>PaymentAmount</code> لكل Activity.<br>
-    • أثناء التحويل: لو <code>PaymentAmount == Net</code> لنفس الـ Activity → يتم حذف <code>DenialCode</code>، وإلا يظل موجودًا.<br>
-    • باقي قواعد التحويل تطبّق كما هي (التبديل بين S/R، الإضافات بعد ProviderID و Clinician...).
+    • After upload, a table appears showing <code>Net</code> and a <code>Payment Amount</code> input field for each Activity.<br>
+    • **Smart Conversion:** If Payment Amount == Net for an Activity, the **DenialCode** will be removed; otherwise, it remains.<br>
+    • The tool adjusts **TransactionDate** to the next day, minus 4 hours, and ensures a **unique PaymentReference**.
   </footer>
 
 <script>
@@ -261,7 +261,6 @@
 
   // New helper function to parse DD/MM/YYYY HH:MM into a Date object
   const parseDT = dtStr => {
-    // Example: 15/09/2025 18:26
     const parts = dtStr.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
     if (!parts) return null;
     // Note: Month is 0-indexed in JS Date (parts[2]-1)
@@ -301,7 +300,7 @@
     }
     
     if (!claims.length) {
-      panel.innerHTML = '<div class="hint">لا توجد Claims في الملف.</div>';
+      panel.innerHTML = '<div class="hint">No Claims found in the file.</div>';
       return;
     }
     
@@ -313,7 +312,7 @@
       div.innerHTML = `<h3>${title}</h3>
         <table>
           <thead>
-            <tr><th>#</th><th>Activity ID</th><th>Code</th><th>Net</th><th>PaymentAmount</th></tr>
+            <tr><th>#</th><th>Activity ID</th><th>Code</th><th>Net</th><th>Payment Amount</th></tr>
           </thead>
           <tbody id="tbody_${ci}"></tbody>
         </table>`;
@@ -323,7 +322,7 @@
       const acts = allByName(c, 'Activity');
       if (!acts.length) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="5" class="hint">لا توجد Activities</td>`;
+        tr.innerHTML = `<td colspan="5" class="hint">No Activities</td>`;
         tbody.appendChild(tr);
       } else {
         acts.forEach((act, ai) => {
@@ -336,7 +335,7 @@
             <td>${aID || '-'}</td>
             <td>${code || '-'}</td>
             <td class="net"><span>${net || '-'}</span></td>
-            <td><input type="text" data-key="${ci}_${ai}" placeholder="اتركه فارغًا = Net" /></td>
+            <td><input type="text" data-key="${ci}_${ai}" placeholder="Leave blank = Net" /></td>
           `;
           tbody.appendChild(tr);
         });
@@ -344,7 +343,7 @@
     });
   }
 
-  // Executes the 7 transformation rules + new logic
+  // Executes the transformation rules
   function buildRemittance(srcDoc) {
     const impl = document.implementation;
     const newDoc = impl.createDocument('', '', null);
@@ -354,10 +353,6 @@
     root.setAttribute('xmlns:xsi','http://www.w3.org/2001/XMLSchema-instance');
     root.setAttribute('xmlns:tns','http://www.eclaimlink.ae/DHD/ValidationSchema');
     newDoc.appendChild(root);
-
-    // Dynamic PaymentReference Logic (HHMM123)
-    const now = new Date();
-    const dynamicRef = `${pad2(now.getHours())}${pad2(now.getMinutes())}123`;
 
     // Header processing
     const srcHeader = byName(srcDoc, 'Header');
@@ -376,30 +371,29 @@
       calculatedDT.setHours(calculatedDT.getHours() - 4); 
     }
     
-    // Header Content
-    for (const child of srcHeader.children) {
-      const tag = (child.localName || child.nodeName);
-      const n = newDoc.createElement(tag);
-      n.textContent = (child.textContent || '').trim();
-
-      // Rule: Swap SenderID/ReceiverID, but only keep other nodes (RecordCount, DispositionFlag, etc.)
-      if (tag !== 'SenderID' && tag !== 'ReceiverID' && tag !== 'TransactionDate') {
-         h.appendChild(n);
-      }
-    }
-    
-    // Swapped SenderID (original ReceiverID)
+    // Header Content (Ordered as requested)
     const sender = srcHeader ? textOf(srcHeader, 'SenderID') : '';
     const receiver = srcHeader ? textOf(srcHeader, 'ReceiverID') : '';
+    const recordCount = srcHeader ? textOf(srcHeader, 'RecordCount') : '';
+    const dispositionFlag = srcHeader ? textOf(srcHeader, 'DispositionFlag') : '';
+    
+    // 1. SenderID (Swapped)
     const sId = newDoc.createElement('SenderID'); sId.textContent = receiver || '';
+    // 2. ReceiverID (Swapped)
     const rId = newDoc.createElement('ReceiverID'); rId.textContent = sender || '';
-    const tDate = newDoc.createElement('TransactionDate'); 
-    tDate.textContent = fmtDT(calculatedDT); // Calculated new date
+    // 3. TransactionDate (Calculated: Next day - 4 hours)
+    const tDate = newDoc.createElement('TransactionDate'); tDate.textContent = fmtDT(calculatedDT);
+    // 4. RecordCount (Original, kept)
+    const rCount = newDoc.createElement('RecordCount'); rCount.textContent = recordCount || '1';
+    // 5. DispositionFlag (Original, kept)
+    const dFlag = newDoc.createElement('DispositionFlag'); dFlag.textContent = dispositionFlag || 'PRODUCTION';
 
-    // Re-insert the swapped/calculated elements
     h.appendChild(sId); 
     h.appendChild(rId); 
     h.appendChild(tDate);
+    h.appendChild(rCount); 
+    h.appendChild(dFlag);
+    
     root.appendChild(h);
 
     // Collect claims
@@ -410,6 +404,14 @@
 
     for (const [ci, c] of claims.entries()) {
       const newClaim = newDoc.createElement('Claim');
+      const claimID = textOf(c, 'ID') || '0000';
+      const last4ClaimID = claimID.slice(-4);
+
+      // Dynamic PaymentReference Logic (HHMM + Last4ClaimID + 123)
+      const now = new Date();
+      // Current Time (HHMM) + Last 4 of ClaimID + Serial (123)
+      const dynamicRef = `${pad2(now.getHours())}${pad2(now.getMinutes())}${last4ClaimID}123`;
+      
 
       // Copy simple first-level children EXCEPT Encounter/Activity/Diagnosis
       for (const child of c.children) {
@@ -422,9 +424,9 @@
 
       // --- Insert PaymentReference (Dynamic) & DateSettlement AFTER ProviderID ---
       const paymentRef = newDoc.createElement('PaymentReference');
-      paymentRef.textContent = dynamicRef; // Dynamic HHMM123
+      paymentRef.textContent = dynamicRef; // Dynamic HHMM + Last4ClaimID + 123
       const dateSettle = newDoc.createElement('DateSettlement');
-      dateSettle.textContent = '11/08/2025 16:01'; // Static value used in previous logic
+      dateSettle.textContent = '11/08/2025 16:01'; // Static value (as previously provided)
 
       let providerInNew = byName(newClaim, 'ProviderID');
       if (providerInNew && providerInNew.parentNode === newClaim) {
@@ -522,12 +524,12 @@
 
     let text;
     try { text = await f.text(); }
-    catch(e) { showError('تعذّر قراءة الملف: ' + e.message); return; }
+    catch(e) { showError('Failed to read file: ' + e.message); return; }
 
     const dp = new DOMParser();
     const src = dp.parseFromString(text, 'text/xml');
     if (src.getElementsByTagName('parsererror').length) {
-      showError('ملف XML غير صالح (ParserError).'); return;
+      showError('Invalid XML file (Parser Error).'); return;
     }
 
     loadedDoc = src;
@@ -537,7 +539,7 @@
   // When user clicks convert, execute transformation and download
   document.getElementById('convert').addEventListener('click', async () => {
     $('#msg').innerHTML = '';
-    if (!loadedDoc) { showError('من فضلك اختر ملف XML أولًا.'); return; }
+    if (!loadedDoc) { showError('Please select an XML file first.'); return; }
 
     try {
       const raw = buildRemittance(loadedDoc);
@@ -554,7 +556,7 @@
       a.click();
       URL.revokeObjectURL(a.href);
     } catch(e) {
-      showError('حصل خطأ أثناء المعالجة: ' + (e && e.message ? e.message : e));
+      showError('An error occurred during processing: ' + (e && e.message ? e.message : e));
     }
   });
 })();
