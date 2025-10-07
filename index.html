@@ -35,15 +35,20 @@
       margin-bottom: 1.5rem;
     }
     
-    .logo-container {
-      margin-bottom: 1rem;
-    }
-    
-    .logo-container img {
-       max-height: 400px; /* Adjust as needed */
-       width: auto;
-       display: block;
-    }
+   .logo-container {
+  /* تأكيد العرض الكامل والتوسيط */
+  width: 100%;
+  text-align: center; 
+  margin-bottom: 1.5rem;
+}
+
+.logo-container img {
+  height: 120px; /* تغيير max-height إلى height (ارتفاع صريح) */
+  max-width: 90%; /* للتأكد من عدم خروج الصورة على الشاشات الصغيرة */
+  width: auto; 
+  display: block;
+  margin: 0 auto; /* لتوسيط الصورة */
+}
     
     h1 {
       font-size: 1.5rem;
@@ -516,6 +521,7 @@
 </script>
 </body>
 </html>
+
 
 
 
