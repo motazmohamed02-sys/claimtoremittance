@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Claim Remittance Converter</title>
   <style>
-    /* New Dark Theme Colors */
+    /* New Dark Theme Colors (Black & Orange) */
     :root { 
       --brand: #FF7F00; /* Orange */
       --brand-dark: #cc6600; 
@@ -23,40 +23,40 @@
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       max-width: 980px;
       margin: auto;
-      padding: 1.25rem;
+      padding: 1.5rem;
       background-color: var(--bg-dark); /* Dark Background */
       color: var(--text-light); /* Light Text */
+      direction: rtl; /* Use RTL for Arabic UI */
     }
     
     header {
       display: flex;
-      flex-direction: column; /* Stack logo and title */
+      flex-direction: column; 
       align-items: center;
+      margin-bottom: 2rem;
+    }
+    
+    .logo-container {
+      width: 100%;
+      text-align: center; 
       margin-bottom: 1.5rem;
     }
     
-   .logo-container {
-  /* تأكيد العرض الكامل والتوسيط */
-  width: 100%;
-  text-align: center; 
-  margin-bottom: 1.5rem;
-}
-
-.logo-container img {
-  height: 65px; /* تغيير max-height إلى height (ارتفاع صريح) */
-  max-width: 70%; /* للتأكد من عدم خروج الصورة على الشاشات الصغيرة */
-  width: auto; 
-  display: block;
-  margin: 0 auto; /* لتوسيط الصورة */
-}
+    .logo-container img {
+      height: 120px; /* تم التعديل إلى ارتفاع صريح: 120px */
+      max-width: 90%; 
+      width: auto;
+      display: block;
+      margin: 0 auto; 
+    }
     
     h1 {
-      font-size: 1.5rem;
+      font-size: 1.7rem;
       color: var(--brand); /* Orange Title */
     }
 
     .card {
-      background: var(--card-bg); /* Dark Card Background */
+      background: var(--card-bg); 
       border: 1px solid var(--border-color);
       border-radius: 16px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
@@ -68,6 +68,7 @@
       margin-top: .75rem;
       font-weight: 600;
       color: var(--text-light);
+      text-align: right;
     }
     
     input[type="text"] {
@@ -78,12 +79,14 @@
       margin-top: .35rem;
       background-color: var(--input-bg);
       color: var(--text-light);
+      direction: ltr; /* Ensure numbers/English text are LTR */
+      text-align: left;
     }
 
     /* Styling for File Input to make it more visible */
     input[type="file"] {
       width: 100%;
-      padding: 1rem; /* Bigger padding for visibility */
+      padding: 1rem; 
       border: 2px dashed var(--brand); /* Dashed Orange border */
       border-radius: 12px;
       margin-top: .5rem;
@@ -119,6 +122,7 @@
     .hint {
       color: var(--hint-color);
       font-size: .95rem;
+      text-align: right;
     }
     
     .error {
@@ -128,12 +132,14 @@
       border-radius: 10px;
       margin-top: .75rem;
       border: 1px solid var(--error-text);
+      text-align: right;
     }
     
     footer {
       margin-top: 1.5rem;
       color: var(--hint-color);
       font-size: .9rem;
+      text-align: right;
     }
     
     code {
@@ -151,7 +157,10 @@
       margin-top: 1rem;
       padding-top: 1rem;
       border-top: 1px dashed var(--border-color);
+      justify-content: flex-end; /* Align options to the right in RTL */
     }
+
+    .opts label { margin-top: 0; }
     
     .claims {
       margin-top: 2rem;
@@ -169,12 +178,14 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 1rem;
+      direction: rtl; /* Ensure table structure is RTL */
+      text-align: right;
     }
     
     th, td {
       border: 1px solid var(--border-color);
       padding: .8rem;
-      text-align: start;
+      text-align: right;
       color: var(--text-light);
     }
     
@@ -195,33 +206,32 @@
     <div class="logo-container">
       <img src="logo.png" alt="Company Logo">
     </div>
-    <h1>Claim XML to Remittance Converter (Per-Activity Net/Payment Edit)</h1>
-    <div class="hint">Browser-Based Tool</div>
+    <h1>تحويل Claim XML إلى Remittance (إظهار Net + إدخال Payment لكل Activity)</h1>
+    <div class="hint">يعمل كليًا داخل المتصفح</div>
   </header>
 
   <div class="card">
-    <label>Upload XML File (Claim)</label>
+    <label>ارفع ملف الـ XML (claim)</label>
     <input id="file" type="file" accept=".xml" />
     
     <div id="msg"></div>
     
     <div class="opts">
-      <label><input type="checkbox" id="pretty" checked> Format Output (Pretty Print)</label>
-      <label><input type="checkbox" id="crlf" checked> Windows Line Endings (CRLF)</label>
-      <button id="convert" class="primary">Convert and Download</button>
+      <label><input type="checkbox" id="pretty" checked> تنسيق الإخراج (Pretty print)</label>
+      <label><input type="checkbox" id="crlf" checked> فواصل أسطر ويندوز (CRLF)</label>
+      <button id="convert" class="primary">حوّل وحمّل الملف</button>
     </div>
   </div>
 
   <div id="panel" class="claims"></div>
 
   <footer class="hint">
-    • After upload, a table will appear showing the **<code>Net</code>** column and a **Payment Amount** input field for each Activity.<br>
-    • **Smart Conversion (Rule 7):** If Payment Amount == Net for an Activity, the **DenialCode** will be removed; otherwise, it remains.
+    • بعد رفع الملف هتظهر قائمة بالـ Activities لكل Claim: عمود <code>Net</code> + حقل <code>PaymentAmount</code> لكل Activity.<br>
+    • أثناء التحويل: لو <code>PaymentAmount == Net</code> لنفس الـ Activity → يتم حذف <code>DenialCode</code>، وإلا يظل موجودًا.<br>
+    • باقي قواعد التحويل تطبّق كما هي (التبديل بين S/R، الإضافات بعد ProviderID و Clinician...).
   </footer>
 
 <script>
-// --- [ JavaScript Code from previous step remains the same here ] ---
-// NOTE: I am omitting the full JS block here for brevity, but you must paste the complete working JS code here.
 (function(){
   const $ = sel => document.querySelector(sel);
   const byName = (parent, name) => {
@@ -248,14 +258,22 @@
   // Helper to fix potential comma/dot issue in numbers and format to 2 decimal places
   const fmt2 = n => (Number.isFinite(n) ? n.toFixed(2) : "0.00");
   const pad2 = n => (n < 10 ? "0"+n : ""+n);
+
+  // New helper function to parse DD/MM/YYYY HH:MM into a Date object
+  const parseDT = dtStr => {
+    // Example: 15/09/2025 18:26
+    const parts = dtStr.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+    if (!parts) return null;
+    // Note: Month is 0-indexed in JS Date (parts[2]-1)
+    return new Date(parts[3], parts[2]-1, parts[1], parts[4], parts[5]);
+  };
+  
   // Date format: DD/MM/YYYY HH:MM
   const fmtDT = d => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
   // Pretty-print XML string with indentation
   function formatXml(xml, eol) {
-    // 1. Remove unnecessary spaces between tags
     xml = xml.replace(/>\s+</g, '><');
-    // 2. Add line breaks after closing angle brackets
     xml = xml.replace(/(>)(<)(\/*)/g, '$1\n$2$3');
     const lines = xml.split('\n');
     let indent = 0;
@@ -263,10 +281,8 @@
     for (let line of lines) {
       line = line.trim();
       if (!line) continue;
-      // 3. Decrease indent for closing tags
       if (line.match(/^<\/\w/)) indent = Math.max(indent - 1, 0);
       out.push('  '.repeat(indent) + line);
-      // 4. Increase indent for opening tags (if not self-closing)
       if (line.match(/^<\w[^>]*[^\/]>$/) && !line.includes('</')) indent++;
     }
     return out.join(eol);
@@ -280,24 +296,24 @@
     panel.innerHTML = '';
     
     let claims = allByName(doc, 'Claim');
-    // Handle case where the root element itself is the Claim
     if (claims.length === 0 && (doc.documentElement.localName || doc.documentElement.nodeName).toLowerCase() === 'claim') {
       claims = [doc.documentElement];
     }
     
     if (!claims.length) {
-      panel.innerHTML = '<div class="hint">No Claims found in the file.</div>';
+      panel.innerHTML = '<div class="hint">لا توجد Claims في الملف.</div>';
       return;
     }
     
     claims.forEach((c, ci) => {
+      const idText = textOf(c, 'ID');
       const div = document.createElement('div');
       div.className = 'claim';
-      const title = `CLAIM #${ci+1} (ID: ${textOf(c, 'ID') || 'N/A'})`;
+      const title = `CLAIM #${ci+1} (ID: ${idText || 'N/A'})`;
       div.innerHTML = `<h3>${title}</h3>
         <table>
           <thead>
-            <tr><th>#</th><th>Activity ID</th><th>Code</th><th>Net</th><th>Payment Amount</th></tr>
+            <tr><th>#</th><th>Activity ID</th><th>Code</th><th>Net</th><th>PaymentAmount</th></tr>
           </thead>
           <tbody id="tbody_${ci}"></tbody>
         </table>`;
@@ -307,7 +323,7 @@
       const acts = allByName(c, 'Activity');
       if (!acts.length) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="5" class="hint">No Activities</td>`;
+        tr.innerHTML = `<td colspan="5" class="hint">لا توجد Activities</td>`;
         tbody.appendChild(tr);
       } else {
         acts.forEach((act, ai) => {
@@ -315,13 +331,12 @@
           const code = textOf(act, 'Code');
           const net = textOf(act, 'Net');
           const tr = document.createElement('tr');
-          // data-key is used to link input to its activity when converting
           tr.innerHTML = `
             <td>${ai+1}</td>
             <td>${aID || '-'}</td>
             <td>${code || '-'}</td>
             <td class="net"><span>${net || '-'}</span></td>
-            <td><input type="text" data-key="${ci}_${ai}" placeholder="Leave blank = Net" /></td>
+            <td><input type="text" data-key="${ci}_${ai}" placeholder="اتركه فارغًا = Net" /></td>
           `;
           tbody.appendChild(tr);
         });
@@ -329,7 +344,7 @@
     });
   }
 
-  // Executes the 7 transformation rules
+  // Executes the 7 transformation rules + new logic
   function buildRemittance(srcDoc) {
     const impl = document.implementation;
     const newDoc = impl.createDocument('', '', null);
@@ -340,21 +355,51 @@
     root.setAttribute('xmlns:tns','http://www.eclaimlink.ae/DHD/ValidationSchema');
     newDoc.appendChild(root);
 
-    // --- Rule 5 & 6: Header modifications (Swap Sender/Receiver, Tomorrow's date) ---
+    // Dynamic PaymentReference Logic (HHMM123)
+    const now = new Date();
+    const dynamicRef = `${pad2(now.getHours())}${pad2(now.getMinutes())}123`;
+
+    // Header processing
     const srcHeader = byName(srcDoc, 'Header');
+    const h = newDoc.createElement('Header');
+
+    // Get original TransactionDate for new calculation
+    let srcDTText = srcHeader ? textOf(srcHeader, 'TransactionDate') : '';
+    let calculatedDT = new Date(); // Fallback to current date
+    const parsedSrcDT = parseDT(srcDTText);
+
+    if (parsedSrcDT) {
+      calculatedDT = parsedSrcDT; 
+      // Add 1 day (Next Day)
+      calculatedDT.setDate(calculatedDT.getDate() + 1); 
+      // Subtract 4 hours (Time - 4 Hours)
+      calculatedDT.setHours(calculatedDT.getHours() - 4); 
+    }
+    
+    // Header Content
+    for (const child of srcHeader.children) {
+      const tag = (child.localName || child.nodeName);
+      const n = newDoc.createElement(tag);
+      n.textContent = (child.textContent || '').trim();
+
+      // Rule: Swap SenderID/ReceiverID, but only keep other nodes (RecordCount, DispositionFlag, etc.)
+      if (tag !== 'SenderID' && tag !== 'ReceiverID' && tag !== 'TransactionDate') {
+         h.appendChild(n);
+      }
+    }
+    
+    // Swapped SenderID (original ReceiverID)
     const sender = srcHeader ? textOf(srcHeader, 'SenderID') : '';
     const receiver = srcHeader ? textOf(srcHeader, 'ReceiverID') : '';
-
-    const h = newDoc.createElement('Header');
-    const sId = newDoc.createElement('SenderID'); sId.textContent = receiver || ''; // Swapped
-    const rId = newDoc.createElement('ReceiverID'); rId.textContent = sender || '';   // Swapped
-    
-    const tomorrow = new Date(); 
-    tomorrow.setDate(tomorrow.getDate()+1);
+    const sId = newDoc.createElement('SenderID'); sId.textContent = receiver || '';
+    const rId = newDoc.createElement('ReceiverID'); rId.textContent = sender || '';
     const tDate = newDoc.createElement('TransactionDate'); 
-    tDate.textContent = fmtDT(tomorrow); // Rule 6: Tomorrow's date
-    
-    h.appendChild(sId); h.appendChild(rId); h.appendChild(tDate);
+    tDate.textContent = fmtDT(calculatedDT); // Calculated new date
+
+    // Re-insert the swapped/calculated elements
+    h.appendChild(sId); 
+    h.appendChild(rId); 
+    h.appendChild(tDate);
     root.appendChild(h);
 
     // Collect claims
@@ -375,19 +420,17 @@
         newClaim.appendChild(n);
       }
 
-      // --- Rule 2: Insert PaymentReference & DateSettlement AFTER ProviderID ---
+      // --- Insert PaymentReference (Dynamic) & DateSettlement AFTER ProviderID ---
       const paymentRef = newDoc.createElement('PaymentReference');
-      paymentRef.textContent = '5447292025'; // Value + '2025'
+      paymentRef.textContent = dynamicRef; // Dynamic HHMM123
       const dateSettle = newDoc.createElement('DateSettlement');
-      dateSettle.textContent = '11/08/2025 16:01';
+      dateSettle.textContent = '11/08/2025 16:01'; // Static value used in previous logic
 
       let providerInNew = byName(newClaim, 'ProviderID');
       if (providerInNew && providerInNew.parentNode === newClaim) {
-        // Insert after ProviderID
         newClaim.insertBefore(paymentRef, providerInNew.nextSibling);
         newClaim.insertBefore(dateSettle, paymentRef.nextSibling);
       } else {
-        // Fallback: insert at the beginning of the claim
         newClaim.insertBefore(dateSettle, newClaim.firstChild);
         newClaim.insertBefore(paymentRef, newClaim.firstChild);
       }
@@ -413,7 +456,7 @@
           newAct.appendChild(nn);
         }
 
-        // --- Rule 4: Insert PatientShare, PaymentAmount, DenialCode after Clinician ---
+        // --- Insert after Clinician: PatientShare, PaymentAmount, DenialCode ---
         const patientShare = newDoc.createElement('PatientShare'); patientShare.textContent = '0.0';
         const paymentAmountEl = newDoc.createElement('PaymentAmount'); paymentAmountEl.textContent = '0.0';
         const denial = newDoc.createElement('DenialCode'); denial.textContent = 'NCOV-0023';
@@ -430,7 +473,6 @@
             newAct.appendChild(denial);
           }
         } else {
-          // Fallback: append at the end of the activity
           newAct.appendChild(patientShare);
           newAct.appendChild(paymentAmountEl);
           newAct.appendChild(denial);
@@ -441,18 +483,16 @@
         let netVal = parseFloat(netText.replace(',', '.'));
         if (!Number.isFinite(netVal)) netVal = 0;
 
-        // Find matching input in the rendered table (using data-key)
         const input = document.querySelector(`input[data-key="${ci}_${ai}"]`);
 
         let val = netVal; // Default: Payment = Net
         if (input && input.value.trim()) {
-          // Use user input if provided
           const asNum = parseFloat(input.value.trim().replace(',', '.'));
           if (Number.isFinite(asNum)) val = asNum;
         }
         paymentAmountEl.textContent = fmt2(val); // Set PaymentAmount
 
-        // Apply Rule 7: Remove DenialCode if PaymentAmount == Net (using a small tolerance for floating-point comparison)
+        // Apply Rule 7: Remove DenialCode if PaymentAmount == Net 
         if (Math.abs(val - netVal) < 1e-6) {
           if (denial.parentNode === newAct) newAct.removeChild(denial);
         }
@@ -482,12 +522,12 @@
 
     let text;
     try { text = await f.text(); }
-    catch(e) { showError('Failed to read file: ' + e.message); return; }
+    catch(e) { showError('تعذّر قراءة الملف: ' + e.message); return; }
 
     const dp = new DOMParser();
     const src = dp.parseFromString(text, 'text/xml');
     if (src.getElementsByTagName('parsererror').length) {
-      showError('Invalid XML file (Parser Error).'); return;
+      showError('ملف XML غير صالح (ParserError).'); return;
     }
 
     loadedDoc = src;
@@ -497,7 +537,7 @@
   // When user clicks convert, execute transformation and download
   document.getElementById('convert').addEventListener('click', async () => {
     $('#msg').innerHTML = '';
-    if (!loadedDoc) { showError('Please select an XML file first.'); return; }
+    if (!loadedDoc) { showError('من فضلك اختر ملف XML أولًا.'); return; }
 
     try {
       const raw = buildRemittance(loadedDoc);
@@ -514,18 +554,10 @@
       a.click();
       URL.revokeObjectURL(a.href);
     } catch(e) {
-      showError('An error occurred during processing: ' + (e && e.message ? e.message : e));
+      showError('حصل خطأ أثناء المعالجة: ' + (e && e.message ? e.message : e));
     }
   });
 })();
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
