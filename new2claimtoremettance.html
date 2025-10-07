@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Remittance Advice Builder — Browser Edition (Per-Activity Net/Payment Edit)</title>
+  <style>
+    :root { --brand:#0d6efd; --muted:#6c757d; }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:980px;margin:auto;padding:1.25rem;}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 1px 6px rgba(0,0,0,.06);padding:1rem;}
+    label{display:block;margin-top:.75rem;font-weight:600}
+    input[type="file"],input[type="text"]{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:10px;margin-top:.35rem;}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    button{border:0;border-radius:12px;padding:.8rem 1rem;font-weight:700;cursor:pointer}
+    .primary{background:#0d6efd;color:#fff}
+    .ghost{background:#f8fafc}
+    .hint{color:#64748b;font-size:.95rem}
+    .error{background:#fee2e2;color:#991b1b;padding:.75rem;border-radius:10px;margin-top:.75rem}
+    footer{margin-top:1rem;color:#64748b;font-size:.9rem}
+    code{background:#f1f5f9;padding:.15rem .4rem;border-radius:6px}
+    .opts{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-top:.75rem}
+    .claims{margin-top:1rem}
+    .claim{border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin:.75rem 0}
+    table{width:100%;border-collapse:collapse;margin-top:.5rem}
+    th,td{border:1px solid #e5e7eb;padding:.5rem;text-align:start}
+    th{background:#f8fafc}
+    .net{font-weight:700}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Claim XML to Remittance Converter (Per-Activity Net/Payment Edit)</h1>
+    <div class="hint">Browser-Based Tool</div>
+  </header>
+
+  <div class="card">
+    <label>Upload XML File (Claim)</label>
+    <input id="file" type="file" accept=".xml" />
+    <div class="opts">
+      <label><input type="checkbox" id="pretty" checked> Format Output (Pretty Print)</label>
+      <label><input type="checkbox" id="crlf" checked> Windows Line Endings (CRLF)</label>
+      <button id="convert" class="primary">Convert and Download</button>
+    </div>
+    <div id="msg"></div>
+  </div>
+
+  <div id="panel" class="claims"></div>
+
+  <footer class="hint">
+    • After upload, a table will appear showing the **<code>Net</code>** column and a **Payment Amount** input field for each Activity.<br>
+    • **Smart Conversion (Rule 7):** If Payment Amount == Net for an Activity, the **DenialCode** will be removed; otherwise, it remains.
+  </footer>
+
+<script>
+(function(){
+  const $ = sel => document.querySelector(sel);
+  const byName = (parent, name) => {
+    name = name.toLowerCase();
+    const nodes = parent.querySelectorAll('*');
+    for (const n of nodes) {
+      if ((n.localName || n.nodeName).toLowerCase() === name) return n;
+    }
+    return null;
+  };
+  const allByName = (parent, name) => {
+    name = name.toLowerCase();
+    const out = [];
+    const nodes = parent.querySelectorAll('*');
+    for (const n of nodes) {
+      if ((n.localName || n.nodeName).toLowerCase() === name) out.push(n);
+    }
+    return out;
+  };
+  const textOf = (parent, name) => {
+    const el = byName(parent, name);
+    return el ? (el.textContent || "").trim() : "";
+  };
+  // Helper to fix potential comma/dot issue in numbers and format to 2 decimal places
+  const fmt2 = n => (Number.isFinite(n) ? n.toFixed(2) : "0.00");
+  const pad2 = n => (n < 10 ? "0"+n : ""+n);
+  // Date format: DD/MM/YYYY HH:MM
+  const fmtDT = d => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+  // Pretty-print XML string with indentation
+  function formatXml(xml, eol) {
+    // 1. Remove unnecessary spaces between tags
+    xml = xml.replace(/>\s+</g, '><');
+    // 2. Add line breaks after closing angle brackets
+    xml = xml.replace(/(>)(<)(\/*)/g, '$1\n$2$3');
+    const lines = xml.split('\n');
+    let indent = 0;
+    const out = [];
+    for (let line of lines) {
+      line = line.trim();
+      if (!line) continue;
+      // 3. Decrease indent for closing tags
+      if (line.match(/^<\/\w/)) indent = Math.max(indent - 1, 0);
+      out.push('  '.repeat(indent) + line);
+      // 4. Increase indent for opening tags (if not self-closing)
+      if (line.match(/^<\w[^>]*[^\/]>$/) && !line.includes('</')) indent++;
+    }
+    return out.join(eol);
+  }
+
+  let loadedDoc = null;
+
+  // Renders the table for activity data entry
+  function renderActivities(doc){
+    const panel = $('#panel');
+    panel.innerHTML = '';
+    
+    let claims = allByName(doc, 'Claim');
+    // Handle case where the root element itself is the Claim
+    if (claims.length === 0 && (doc.documentElement.localName || doc.documentElement.nodeName).toLowerCase() === 'claim') {
+      claims = [doc.documentElement];
+    }
+    
+    if (!claims.length) {
+      panel.innerHTML = '<div class="hint">No Claims found in the file.</div>';
+      return;
+    }
+    
+    claims.forEach((c, ci) => {
+      const div = document.createElement('div');
+      div.className = 'claim';
+      const title = `CLAIM #${ci+1} (ID: ${textOf(c, 'ID') || 'N/A'})`;
+      div.innerHTML = `<h3>${title}</h3>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Activity ID</th><th>Code</th><th>Net</th><th>Payment Amount</th></tr>
+          </thead>
+          <tbody id="tbody_${ci}"></tbody>
+        </table>`;
+      panel.appendChild(div);
+
+      const tbody = div.querySelector(`#tbody_${ci}`);
+      const acts = allByName(c, 'Activity');
+      if (!acts.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="5" class="hint">No Activities</td>`;
+        tbody.appendChild(tr);
+      } else {
+        acts.forEach((act, ai) => {
+          const aID = textOf(act, 'ID');
+          const code = textOf(act, 'Code');
+          const net = textOf(act, 'Net');
+          const tr = document.createElement('tr');
+          // data-key is used to link input to its activity when converting
+          tr.innerHTML = `
+            <td>${ai+1}</td>
+            <td>${aID || '-'}</td>
+            <td>${code || '-'}</td>
+            <td class="net"><span>${net || '-'}</span></td>
+            <td><input type="text" data-key="${ci}_${ai}" placeholder="Leave blank = Net" /></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    });
+  }
+
+  // Executes the 7 transformation rules
+  function buildRemittance(srcDoc) {
+    const impl = document.implementation;
+    const newDoc = impl.createDocument('', '', null);
+    
+    // --- Rule 1: Replace header/footer with Remittance.Advice root ---
+    const root = newDoc.createElement('Remittance.Advice');
+    root.setAttribute('xmlns:xsi','http://www.w3.org/2001/XMLSchema-instance');
+    root.setAttribute('xmlns:tns','http://www.eclaimlink.ae/DHD/ValidationSchema');
+    newDoc.appendChild(root);
+
+    // --- Rule 5 & 6: Header modifications (Swap Sender/Receiver, Tomorrow's date) ---
+    const srcHeader = byName(srcDoc, 'Header');
+    const sender = srcHeader ? textOf(srcHeader, 'SenderID') : '';
+    const receiver = srcHeader ? textOf(srcHeader, 'ReceiverID') : '';
+
+    const h = newDoc.createElement('Header');
+    const sId = newDoc.createElement('SenderID'); sId.textContent = receiver || ''; // Swapped
+    const rId = newDoc.createElement('ReceiverID'); rId.textContent = sender || '';   // Swapped
+    
+    const tomorrow = new Date(); 
+    tomorrow.setDate(tomorrow.getDate()+1);
+    const tDate = newDoc.createElement('TransactionDate'); 
+    tDate.textContent = fmtDT(tomorrow); // Rule 6: Tomorrow's date
+    
+    h.appendChild(sId); h.appendChild(rId); h.appendChild(tDate);
+    root.appendChild(h);
+
+    // Collect claims
+    let claims = allByName(srcDoc, 'Claim');
+    if (claims.length === 0 && (srcDoc.documentElement.localName || srcDoc.documentElement.nodeName).toLowerCase() === 'claim') {
+      claims = [srcDoc.documentElement];
+    }
+
+    for (const [ci, c] of claims.entries()) {
+      const newClaim = newDoc.createElement('Claim');
+
+      // Copy simple first-level children EXCEPT Encounter/Activity/Diagnosis
+      for (const child of c.children) {
+        const tag = (child.localName || child.nodeName).toLowerCase();
+        if (tag === 'encounter' || tag === 'activity' || tag === 'diagnosis') continue;
+        const n = newDoc.createElement(child.localName || child.nodeName);
+        n.textContent = (child.textContent || '').trim();
+        newClaim.appendChild(n);
+      }
+
+      // --- Rule 2: Insert PaymentReference & DateSettlement AFTER ProviderID ---
+      const paymentRef = newDoc.createElement('PaymentReference');
+      paymentRef.textContent = '5447292025'; // Value + '2025'
+      const dateSettle = newDoc.createElement('DateSettlement');
+      dateSettle.textContent = '11/08/2025 16:01';
+
+      let providerInNew = byName(newClaim, 'ProviderID');
+      if (providerInNew && providerInNew.parentNode === newClaim) {
+        // Insert after ProviderID
+        newClaim.insertBefore(paymentRef, providerInNew.nextSibling);
+        newClaim.insertBefore(dateSettle, paymentRef.nextSibling);
+      } else {
+        // Fallback: insert at the beginning of the claim
+        newClaim.insertBefore(dateSettle, newClaim.firstChild);
+        newClaim.insertBefore(paymentRef, newClaim.firstChild);
+      }
+
+      // --- Rule 3: Encounter -> keep FacilityID only ---
+      const encSrc = byName(c, 'Encounter');
+      if (encSrc) {
+        const facVal = textOf(encSrc, 'FacilityID');
+        const encNew = newDoc.createElement('Encounter');
+        const fac = newDoc.createElement('FacilityID'); fac.textContent = facVal;
+        encNew.appendChild(fac);
+        newClaim.appendChild(encNew);
+      }
+
+      // Activities processing
+      const acts = allByName(c, 'Activity');
+      for (const [ai, act] of acts.entries()) {
+        const newAct = newDoc.createElement('Activity');
+        // copy all fields first
+        for (const ch of act.children) {
+          const nn = newDoc.createElement(ch.localName || ch.nodeName);
+          nn.textContent = (ch.textContent || '').trim();
+          newAct.appendChild(nn);
+        }
+
+        // --- Rule 4: Insert PatientShare, PaymentAmount, DenialCode after Clinician ---
+        const patientShare = newDoc.createElement('PatientShare'); patientShare.textContent = '0.0';
+        const paymentAmountEl = newDoc.createElement('PaymentAmount'); paymentAmountEl.textContent = '0.0';
+        const denial = newDoc.createElement('DenialCode'); denial.textContent = 'NCOV-0023';
+
+        const clinician = byName(newAct, 'Clinician');
+        if (clinician && clinician.parentNode === newAct) {
+          if (clinician.nextSibling) {
+            newAct.insertBefore(patientShare, clinician.nextSibling);
+            newAct.insertBefore(paymentAmountEl, patientShare.nextSibling);
+            newAct.insertBefore(denial, paymentAmountEl.nextSibling);
+          } else {
+            newAct.appendChild(patientShare);
+            newAct.appendChild(paymentAmountEl);
+            newAct.appendChild(denial);
+          }
+        } else {
+          // Fallback: append at the end of the activity
+          newAct.appendChild(patientShare);
+          newAct.appendChild(paymentAmountEl);
+          newAct.appendChild(denial);
+        }
+
+        // --- Rule 7: Decide PaymentAmount and delete DenialCode if (Payment == Net) ---
+        const netText = textOf(newAct, 'Net') || '0.0';
+        let netVal = parseFloat(netText.replace(',', '.'));
+        if (!Number.isFinite(netVal)) netVal = 0;
+
+        // Find matching input in the rendered table (using data-key)
+        const input = document.querySelector(`input[data-key="${ci}_${ai}"]`);
+
+        let val = netVal; // Default: Payment = Net
+        if (input && input.value.trim()) {
+          // Use user input if provided
+          const asNum = parseFloat(input.value.trim().replace(',', '.'));
+          if (Number.isFinite(asNum)) val = asNum;
+        }
+        paymentAmountEl.textContent = fmt2(val); // Set PaymentAmount
+
+        // Apply Rule 7: Remove DenialCode if PaymentAmount == Net (using a small tolerance for floating-point comparison)
+        if (Math.abs(val - netVal) < 1e-6) {
+          if (denial.parentNode === newAct) newAct.removeChild(denial);
+        }
+
+        newClaim.appendChild(newAct);
+      }
+
+      root.appendChild(newClaim);
+    }
+
+    const xml = new XMLSerializer().serializeToString(newDoc);
+    // Add XML declaration (Rule 1 part)
+    return `<?xml version="1.0" encoding="US-ASCII"?>\n` + xml;
+  }
+
+  function showError(text) {
+    $('#msg').innerHTML = `<div class="error">${text}</div>`;
+  }
+
+  // When user selects a file, render activities and nets
+  $('#file').addEventListener('change', async () => {
+    $('#msg').innerHTML = '';
+    $('#panel').innerHTML = '';
+    loadedDoc = null;
+    const f = $('#file').files[0];
+    if (!f) return;
+
+    let text;
+    try { text = await f.text(); }
+    catch(e) { showError('Failed to read file: ' + e.message); return; }
+
+    const dp = new DOMParser();
+    const src = dp.parseFromString(text, 'text/xml');
+    if (src.getElementsByTagName('parsererror').length) {
+      showError('Invalid XML file (Parser Error).'); return;
+    }
+
+    loadedDoc = src;
+    renderActivities(src);
+  });
+
+  // When user clicks convert, execute transformation and download
+  document.getElementById('convert').addEventListener('click', async () => {
+    $('#msg').innerHTML = '';
+    if (!loadedDoc) { showError('Please select an XML file first.'); return; }
+
+    try {
+      const raw = buildRemittance(loadedDoc);
+      const useCRLF = $('#crlf').checked;
+      const EOL = useCRLF ? '\r\n' : '\n';
+      // Apply pretty print if checked
+      const finalXml = $('#pretty').checked ? formatXml(raw, EOL) : raw;
+
+      const blob = new Blob([finalXml], {type:'application/xml'});
+      const a = document.createElement('a');
+      const name = ($('#file').files[0]?.name || 'claim').replace(/\.xml$/i,'') + '_remittance.xml';
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch(e) {
+      showError('An error occurred during processing: ' + (e && e.message ? e.message : e));
+    }
+  });
+})();
+</script>
+</body>
+</html>
