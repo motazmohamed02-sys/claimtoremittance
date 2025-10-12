@@ -418,101 +418,102 @@
       paymentRef.textContent = dynamicRef; // Dynamic HHMM + Last4ClaimID + 123
       const dateSettle = newDoc.createElement('DateSettlement');
       dateSettle.textContent = '11/08/2025 16:01'; // Static value (as previously provided)
+      
+      let activityCounter = 0;
 
-      // Arrays to hold transformed/added elements
-      const activities = [];
-      const encounters = [];
-      const newElementsToInsert = { 
-        ProviderID: [paymentRef, dateSettle] // Elements to insert after ProviderID
-      };
-
-      // Loop through all original children of the Claim
+      // Iterate through all original child elements of the Claim (to maintain order)
       const originalChildren = c.children;
       for (const child of originalChildren) {
         const tag = (child.localName || child.nodeName);
         const tagLower = tag.toLowerCase();
 
-        if (tagLower === 'activity') {
-          // Defer Activity processing until the loop finishes
-          activities.push(child);
-          continue;
+        // 1. Handle ProviderID insertion point
+        if (tagLower === 'providerid') {
+            // Clone the original ProviderID
+            const clone = newDoc.importNode(child.cloneNode(true), true);
+            newClaim.appendChild(clone);
+            // Insert PaymentReference and DateSettlement immediately after ProviderID
+            newClaim.appendChild(paymentRef);
+            newClaim.appendChild(dateSettle);
+            continue;
         }
 
+        // 2. Handle Encounter transformation (to only FacilityID)
         if (tagLower === 'encounter') {
-          // Transform Encounter to FacilityID only (Rule 3)
-          const encNew = newDoc.createElement('Encounter');
-          const facVal = textOf(child, 'FacilityID');
-          const fac = newDoc.createElement('FacilityID'); fac.textContent = facVal;
-          encNew.appendChild(fac);
-          newClaim.appendChild(encNew);
-          continue;
+            const encNew = newDoc.createElement('Encounter');
+            const facVal = textOf(child, 'FacilityID');
+            const fac = newDoc.createElement('FacilityID'); fac.textContent = facVal;
+            encNew.appendChild(fac);
+            newClaim.appendChild(encNew);
+            continue;
         }
 
-        // Copy all other elements (including Contract and Diagnosis) in their original place
-        const clone = child.cloneNode(true);
-        newClaim.appendChild(newDoc.importNode(clone, true));
-        
-        // Check if we need to insert new elements immediately after this tag
-        if (newElementsToInsert[tag]) {
-          for (const newEl of newElementsToInsert[tag]) {
-            newClaim.appendChild(newEl);
-          }
-          delete newElementsToInsert[tag]; // Clear the array so we don't insert again
+        // 3. Handle Activity transformation (adding new elements, conditional DenialCode removal)
+        if (tagLower === 'activity') {
+            const newAct = newDoc.createElement('Activity');
+            
+            // Copy all existing fields first
+            for (const ch of child.children) {
+              // Deep clone the child elements of Activity (e.g., ID, Start, Net, Clinician)
+              const nn = newDoc.importNode(ch.cloneNode(true), true);
+              newAct.appendChild(nn);
+            }
+
+            // --- Elements to be inserted after Clinician ---
+            const patientShare = newDoc.createElement('PatientShare'); patientShare.textContent = '0.0';
+            const paymentAmountEl = newDoc.createElement('PaymentAmount'); paymentAmountEl.textContent = '0.0';
+            const denial = newDoc.createElement('DenialCode'); denial.textContent = 'NCOV-0023';
+
+            const clinician = byName(newAct, 'Clinician');
+            
+            // Find insertion point (after Clinician, or at the end if Clinician is missing)
+            let insertionPoint = null;
+            if (clinician) {
+                insertionPoint = clinician.nextSibling;
+            } else {
+                // If Clinician is missing, we will append to the end
+                insertionPoint = null; 
+            }
+
+            // Insert new elements
+            if (insertionPoint) {
+                newAct.insertBefore(patientShare, insertionPoint);
+                newAct.insertBefore(paymentAmountEl, patientShare.nextSibling);
+                newAct.insertBefore(denial, paymentAmountEl.nextSibling);
+            } else {
+                newAct.appendChild(patientShare);
+                newAct.appendChild(paymentAmountEl);
+                newAct.appendChild(denial);
+            }
+
+            // --- Rule 7: Decide PaymentAmount and delete DenialCode if (Payment == Net) ---
+            const netText = textOf(newAct, 'Net') || '0.0';
+            let netVal = parseFloat(netText.replace(',', '.'));
+            if (!Number.isFinite(netVal)) netVal = 0;
+
+            // Get user input for this specific activity
+            const input = document.querySelector(`input[data-key="${ci}_${activityCounter}"]`);
+            
+            let val = netVal; // Default: Payment = Net
+            if (input && input.value.trim()) {
+              const asNum = parseFloat(input.value.trim().replace(',', '.'));
+              if (Number.isFinite(asNum)) val = asNum;
+            }
+            paymentAmountEl.textContent = fmt2(val); // Set PaymentAmount
+
+            // Apply Rule 7: Remove DenialCode if PaymentAmount == Net 
+            if (Math.abs(val - netVal) < 1e-6) {
+              if (denial.parentNode === newAct) newAct.removeChild(denial);
+            }
+            
+            newClaim.appendChild(newAct);
+            activityCounter++; // Increment counter for the next activity
+            continue;
         }
-      }
-      
-      // --- Process Activities and append them at the end ---
-      for (const [ai, act] of activities.entries()) {
-        const newAct = newDoc.createElement('Activity');
-        // copy all fields first
-        for (const ch of act.children) {
-          const nn = newDoc.createElement(ch.localName || ch.nodeName);
-          nn.textContent = (ch.textContent || '').trim();
-          newAct.appendChild(nn);
-        }
 
-        // --- Insert after Clinician: PatientShare, PaymentAmount, DenialCode ---
-        const patientShare = newDoc.createElement('PatientShare'); patientShare.textContent = '0.0';
-        const paymentAmountEl = newDoc.createElement('PaymentAmount'); paymentAmountEl.textContent = '0.0';
-        const denial = newDoc.createElement('DenialCode'); denial.textContent = 'NCOV-0023';
-
-        const clinician = byName(newAct, 'Clinician');
-        if (clinician && clinician.parentNode === newAct) {
-          if (clinician.nextSibling) {
-            newAct.insertBefore(patientShare, clinician.nextSibling);
-            newAct.insertBefore(paymentAmountEl, patientShare.nextSibling);
-            newAct.insertBefore(denial, paymentAmountEl.nextSibling);
-          } else {
-            newAct.appendChild(patientShare);
-            newAct.appendChild(paymentAmountEl);
-            newAct.appendChild(denial);
-          }
-        } else {
-          newAct.appendChild(patientShare);
-          newAct.appendChild(paymentAmountEl);
-          newAct.appendChild(denial);
-        }
-
-        // --- Rule 7: Decide PaymentAmount and delete DenialCode if (Payment == Net) ---
-        const netText = textOf(newAct, 'Net') || '0.0';
-        let netVal = parseFloat(netText.replace(',', '.'));
-        if (!Number.isFinite(netVal)) netVal = 0;
-
-        const input = document.querySelector(`input[data-key="${ci}_${ai}"]`);
-
-        let val = netVal; // Default: Payment = Net
-        if (input && input.value.trim()) {
-          const asNum = parseFloat(input.value.trim().replace(',', '.'));
-          if (Number.isFinite(asNum)) val = asNum;
-        }
-        paymentAmountEl.textContent = fmt2(val); // Set PaymentAmount
-
-        // Apply Rule 7: Remove DenialCode if PaymentAmount == Net 
-        if (Math.abs(val - netVal) < 1e-6) {
-          if (denial.parentNode === newAct) newAct.removeChild(denial);
-        }
-
-        newClaim.appendChild(newAct);
+        // 4. Copy all other nodes (ID, MemberID, Diagnosis, Contract, Gross, Net, etc.)
+        const clone = newDoc.importNode(child.cloneNode(true), true);
+        newClaim.appendChild(clone);
       }
 
       root.appendChild(newClaim);
