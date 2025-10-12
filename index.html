@@ -6,40 +6,37 @@
   <title>Claim Remittance Converter</title>
   <style>
     /* New Dark Theme Colors (Black & Orange) */
-   :root { 
-  --brand: #FF7F00; /* Orange */
-  --brand-dark: #cc6600; 
-  --bg-dark: #121212; /* Very Dark Background */
-  --text-light: #f0f0f0; /* Light Text */
-  --card-bg: #1e1e1e; /* Card Background */
-  --border-color: #333; /* Dark Border */
-  --input-bg: #2b2b2b;
-  --hint-color: #999;
-  --error-bg: #3c0c0c; /* Dark Red for Error */
-  --error-text: #ff9999;
-}
+    :root { 
+      --brand: #FF7F00; /* Orange */
+      --brand-dark: #cc6600; 
+      --bg-dark: #121212; /* Very Dark Background */
+      --text-light: #f0f0f0; /* Light Text */
+      --card-bg: #1e1e1e; /* Card Background */
+      --border-color: #333; /* Dark Border */
+      --input-bg: #2b2b2b;
+      --hint-color: #999;
+      --error-bg: #3c0c0c; /* Dark Red for Error */
+      --error-text: #ff9999;
+    }
 
- body {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  max-width: 980px;
-  /* التعديل هنا: ضمان التوسيط الأفقي وإزالة حشو الجوانب */
-  margin-left: auto;
-  margin-right: auto;
-  padding: 1.5rem 0.5rem; /* 1.5rem عمودي، 0.5rem حشو صغير للجوانب */
-  
-  background-color: var(--bg-dark); 
-  color: var(--text-light); 
-  direction: ltr; 
-  /* إذا كنت تريدها في المنتصف تمامًا: */
-  display: block; 
-}
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      max-width: 980px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 1.5rem 0.5rem; /* Adjusted padding for better centering */
+      background-color: var(--bg-dark); 
+      color: var(--text-light); 
+      direction: ltr; 
+      display: block; 
+    }
     
-header {
-  display: flex;
-  flex-direction: column; 
-  align-items: center; /* لتوسيط العناصر الرأسية */
-  margin-bottom: 2rem;
-}
+    header {
+      display: flex;
+      flex-direction: column; 
+      align-items: center;
+      margin-bottom: 2rem;
+    }
     
     .logo-container {
       width: 100%;
@@ -48,7 +45,7 @@ header {
     }
     
     .logo-container img {
-      height: 80px; /* Adjusted to 80px for better fit */
+      height: 80px; /* Logo size adjusted */
       max-width: 90%; 
       width: auto;
       display: block;
@@ -211,7 +208,7 @@ header {
     <div class="logo-container">
       <img src="logo.png" alt="Company Logo">
     </div>
-    <h1>Claim XML to Remittance Converter (Per-Activity Payment Editor)</h1>
+    <h1>Claim XML to Remittance Converter (Per-Activity Net/Payment Edit)</h1>
     <div class="hint">Browser-Based Tool</div>
   </header>
 
@@ -418,13 +415,19 @@ header {
       const dynamicRef = `${pad2(now.getHours())}${pad2(now.getMinutes())}${last4ClaimID}123`;
       
 
-      // Copy simple first-level children EXCEPT Encounter/Activity/Diagnosis
+      // Copy simple first-level children EXCEPT Encounter/Activity
+      // *** MODIFICATION: 'diagnosis' has been removed from the exclusion list to keep it.
       for (const child of c.children) {
         const tag = (child.localName || child.nodeName).toLowerCase();
-        if (tag === 'encounter' || tag === 'activity' || tag === 'diagnosis') continue;
+        // Only skip Encounter and Activity as they are handled/transformed later.
+        if (tag === 'encounter' || tag === 'activity') continue; 
+        
         const n = newDoc.createElement(child.localName || child.nodeName);
-        n.textContent = (child.textContent || '').trim();
-        newClaim.appendChild(n);
+        // Note: For elements with sub-elements (like Diagnosis and Contract),
+        // we copy the structure by importing the node, not just the text.
+        // The standard DOM copy in JS is sufficient to clone the structure and content.
+        const clone = child.cloneNode(true);
+        newClaim.appendChild(newDoc.importNode(clone, true));
       }
 
       // --- Insert PaymentReference (Dynamic) & DateSettlement AFTER ProviderID ---
@@ -442,14 +445,16 @@ header {
         newClaim.insertBefore(paymentRef, newClaim.firstChild);
       }
 
-      // --- Rule 3: Encounter -> keep FacilityID only ---
+      // --- Rule 3: Encounter -> keep FacilityID only (This logic is kept for transformation) ---
       const encSrc = byName(c, 'Encounter');
       if (encSrc) {
         const facVal = textOf(encSrc, 'FacilityID');
         const encNew = newDoc.createElement('Encounter');
         const fac = newDoc.createElement('FacilityID'); fac.textContent = facVal;
         encNew.appendChild(fac);
-        newClaim.appendChild(encNew);
+        // We ensure it is added after all the previous elements copied/inserted
+        // Finding the right insertion point is tricky, appending to the end for safety.
+        newClaim.appendChild(encNew); 
       }
 
       // Activities processing
@@ -568,5 +573,3 @@ header {
 </script>
 </body>
 </html>
-
-
