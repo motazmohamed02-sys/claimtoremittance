@@ -19,15 +19,19 @@
   --error-text: #ff9999;
 }
 
-  body {
+ body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  max-width: 980px; /* العرض الأقصى للعنصر */
-  margin: auto; /* هذا هو مفتاح التوسيط (auto margin) */
-  padding: 1.5rem;
+  max-width: 980px;
+  /* التعديل هنا: ضمان التوسيط الأفقي وإزالة حشو الجوانب */
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem 0.5rem; /* 1.5rem عمودي، 0.5rem حشو صغير للجوانب */
+  
   background-color: var(--bg-dark); 
   color: var(--text-light); 
   direction: ltr; 
-  /* إزالة أي إعدادات توسيط أخرى قد تتعارض */
+  /* إذا كنت تريدها في المنتصف تمامًا: */
+  display: block; 
 }
     
 header {
@@ -564,4 +568,5 @@ header {
 </script>
 </body>
 </html>
+
 
