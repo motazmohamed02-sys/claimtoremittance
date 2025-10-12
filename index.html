@@ -414,52 +414,55 @@
       // Current Time (HHMM) + Last 4 of ClaimID + Serial (123)
       const dynamicRef = `${pad2(now.getHours())}${pad2(now.getMinutes())}${last4ClaimID}123`;
       
-
-      // Copy simple first-level children EXCEPT Encounter/Activity
-      // *** MODIFICATION: 'diagnosis' has been removed from the exclusion list to keep it.
-      for (const child of c.children) {
-        const tag = (child.localName || child.nodeName).toLowerCase();
-        // Only skip Encounter and Activity as they are handled/transformed later.
-        if (tag === 'encounter' || tag === 'activity') continue; 
-        
-        const n = newDoc.createElement(child.localName || child.nodeName);
-        // Note: For elements with sub-elements (like Diagnosis and Contract),
-        // we copy the structure by importing the node, not just the text.
-        // The standard DOM copy in JS is sufficient to clone the structure and content.
-        const clone = child.cloneNode(true);
-        newClaim.appendChild(newDoc.importNode(clone, true));
-      }
-
-      // --- Insert PaymentReference (Dynamic) & DateSettlement AFTER ProviderID ---
       const paymentRef = newDoc.createElement('PaymentReference');
       paymentRef.textContent = dynamicRef; // Dynamic HHMM + Last4ClaimID + 123
       const dateSettle = newDoc.createElement('DateSettlement');
       dateSettle.textContent = '11/08/2025 16:01'; // Static value (as previously provided)
 
-      let providerInNew = byName(newClaim, 'ProviderID');
-      if (providerInNew && providerInNew.parentNode === newClaim) {
-        newClaim.insertBefore(paymentRef, providerInNew.nextSibling);
-        newClaim.insertBefore(dateSettle, paymentRef.nextSibling);
-      } else {
-        newClaim.insertBefore(dateSettle, newClaim.firstChild);
-        newClaim.insertBefore(paymentRef, newClaim.firstChild);
-      }
+      // Arrays to hold transformed/added elements
+      const activities = [];
+      const encounters = [];
+      const newElementsToInsert = { 
+        ProviderID: [paymentRef, dateSettle] // Elements to insert after ProviderID
+      };
 
-      // --- Rule 3: Encounter -> keep FacilityID only (This logic is kept for transformation) ---
-      const encSrc = byName(c, 'Encounter');
-      if (encSrc) {
-        const facVal = textOf(encSrc, 'FacilityID');
-        const encNew = newDoc.createElement('Encounter');
-        const fac = newDoc.createElement('FacilityID'); fac.textContent = facVal;
-        encNew.appendChild(fac);
-        // We ensure it is added after all the previous elements copied/inserted
-        // Finding the right insertion point is tricky, appending to the end for safety.
-        newClaim.appendChild(encNew); 
-      }
+      // Loop through all original children of the Claim
+      const originalChildren = c.children;
+      for (const child of originalChildren) {
+        const tag = (child.localName || child.nodeName);
+        const tagLower = tag.toLowerCase();
 
-      // Activities processing
-      const acts = allByName(c, 'Activity');
-      for (const [ai, act] of acts.entries()) {
+        if (tagLower === 'activity') {
+          // Defer Activity processing until the loop finishes
+          activities.push(child);
+          continue;
+        }
+
+        if (tagLower === 'encounter') {
+          // Transform Encounter to FacilityID only (Rule 3)
+          const encNew = newDoc.createElement('Encounter');
+          const facVal = textOf(child, 'FacilityID');
+          const fac = newDoc.createElement('FacilityID'); fac.textContent = facVal;
+          encNew.appendChild(fac);
+          newClaim.appendChild(encNew);
+          continue;
+        }
+
+        // Copy all other elements (including Contract and Diagnosis) in their original place
+        const clone = child.cloneNode(true);
+        newClaim.appendChild(newDoc.importNode(clone, true));
+        
+        // Check if we need to insert new elements immediately after this tag
+        if (newElementsToInsert[tag]) {
+          for (const newEl of newElementsToInsert[tag]) {
+            newClaim.appendChild(newEl);
+          }
+          delete newElementsToInsert[tag]; // Clear the array so we don't insert again
+        }
+      }
+      
+      // --- Process Activities and append them at the end ---
+      for (const [ai, act] of activities.entries()) {
         const newAct = newDoc.createElement('Activity');
         // copy all fields first
         for (const ch of act.children) {
